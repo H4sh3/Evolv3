@@ -1,0 +1,24 @@
+{
+  "name": "Evolv3",
+  "version": "1.0.0",
+  "description": "Project Evolv3",
+  "main": "elvolv3.js",
+  "dependencies": {},
+  "devDependencies": {
+    "http-server": "^0.11.1"
+  },
+  "scripts": {
+    "start": "http-server"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/H4sh3/Evolv3.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/H4sh3/Evolv3/issues"
+  },
+  "homepage": "https://github.com/H4sh3/Evolv3#readme"
+}
