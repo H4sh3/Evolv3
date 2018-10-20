@@ -1,6 +1,6 @@
 Project Evolv3
 
-some random ml snippets, using p5js.
+some random code snippets, using p5js.
 
 ```
 npm install

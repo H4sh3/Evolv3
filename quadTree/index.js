@@ -14,12 +14,11 @@ setup = () => {
   createCanvas(1300, 900).parent('jsCanvas');
   background(255, 112, 84);
   gravity = createVector(0, 0);
-  maxDepth = 4
-  rootNode = new Node(0, createVector(0, 0), createVector(width, height))
+  rootNode = new Quadtree(0, createVector(0, 0), createVector(width, height))
   spheres = new Map()
   collisions = []
   frameRate(50)
-  for (let i = 0; i < 1500; i++) {
+  for (let i = 0; i < 1000; i++) {
     let id = randomId()
     spheres.set(id, new Sphere(id))
   }
@@ -33,12 +32,12 @@ randomId = () => {
 }
 
 initTree = () => {
-  rootNode = new Node(0, createVector(0, 0), createVector(width, height))
+  rootNode = new Quadtree(0, createVector(0, 0), createVector(width, height))
   spheres.forEach(s => rootNode.insert(s))
 }
 
 draw = () => {
-  background(255, 112, 84);
+  background(255, 153, 51)
   document.querySelector('.frameRate').innerHTML = frameRate();
 
   initTree()
@@ -52,14 +51,19 @@ draw = () => {
 }
 
 drawGraph = () => {
-/*   tick += 0.5
-  graph.push({ x: tick, y: spheres.size })
+  tick += 0.5
+  //graph.push({ x: tick, y: spheres.size })
+  graph.push({ x: tick, y: frameRate() })
 
   for (let i = 1; i < graph.length - 1; i++) {
     rect(graph[i].x, graph[i].y, 2, 2)
     rect(graph[i + 1].x, graph[i + 1].y, 2, 2)
     line(graph[i].x, graph[i].y, graph[i].x + 1, graph[i].y + 1)
-  } */
+  }
+  if(graph.length>300){
+    graph = []
+    tick = 0
+  }
 }
 
 handleCollisions = () => {
@@ -69,7 +73,7 @@ handleCollisions = () => {
     if (s1 && s2) {
       let area1 = pow((s1.size / 2), 2) * PI
       let area2 = pow((s2.size / 2), 2) * PI
-      let newSize = getNewSize(area1,area2)
+      let newSize = getNewSize(area1, area2)
       if (area1 > area2) {
         s1.size = newSize
         spheres.delete(s2.id)
@@ -82,85 +86,108 @@ handleCollisions = () => {
   collisions = []
 }
 
-getNewSize = (area1,area2) => {
+getNewSize = (area1, area2) => {
   let sum = area1 + area2
   let newRadius = sqrt(sum / PI)
   return newRadius * 2
 }
 
-class Node {
+class Quadtree {
   constructor(depth, pos, size) {
     this.depth = depth
-    this.children = [];
     this.rect = new Rectangle1(pos, size);
-    if (depth !== maxDepth) {
-      for (let i = 0; i < 4; i++) {
-        let newSize = this.rect.size.copy().div(2)
-        let newPos = this.rect.pos.copy()
-        switch (i) {
-          case 0:
-            this.children.push(new Node(depth + 1, newPos, newSize))
-            break;
-          case 1:
-            newPos.x = newPos.x + newSize.x
-            this.children.push(new Node(depth + 1, newPos, newSize))
-            break;
-          case 2:
-            newPos.y = newPos.y + newSize.y
-            this.children.push(new Node(depth + 1, newPos, newSize))
-            break;
-          case 3:
-            newPos.x = newPos.x + newSize.x
-            newPos.y = newPos.y + newSize.y
-            this.children.push(new Node(depth + 1, newPos, newSize))
-            break;
-          default:
-            break;
-        }
-      }
-    }
-
+    this.divided = false;
+    this.nodes = [];
+    this.capazity = 5;
   }
 
+
   childs() {
-    return this.children.length
+    return this.nodes.length
   }
 
   insert(element) {
-    if (this.depth == maxDepth) {
-      this.children.push(element)
+    if (!this.divided && this.nodes.length < this.capazity) { // insert
+      this.nodes.push(element)
     } else {
-      for (let i = 0; i < this.children.length; i++) {
-        if (this.children[i].contains(element)) {
-          this.children[i].insert(element)
+      if (!this.divided) {
+        this.subdivide()
+      }
+      if (this.tl.contains(element)) {
+        this.tl.insert(element)
+      } else if (this.tr.contains(element)) {
+        this.tr.insert(element)
+      } else if (this.bl.contains(element)) {
+        this.bl.insert(element)
+      } else if (this.br.contains(element)) {
+        this.br.insert(element)
+      }
+      for (let i = 0; i < this.nodes.length; i++) {
+        if (this.tl.contains(this.nodes[i])) {
+          this.tl.insert(this.nodes[i])
+        } else if (this.tr.contains(this.nodes[i])) {
+          this.tr.insert(this.nodes[i])
+        } else if (this.bl.contains(this.nodes[i])) {
+          this.bl.insert(this.nodes[i])
+        } else if (this.br.contains(this.nodes[i])) {
+          this.br.insert(this.nodes[i])
         }
       }
+      this.nodes = []
     }
   }
 
+  subdivide() {
+    let newSize = this.rect.size.copy().div(2)
+    let newPos = this.rect.pos.copy()
+
+    this.tl = new Quadtree(this.depth + 1, newPos, newSize)
+
+    newPos = this.rect.pos.copy()
+    newPos.x = newPos.x + newSize.x
+    this.tr = new Quadtree(this.depth + 1, newPos, newSize)
+
+    newPos = this.rect.pos.copy()
+    newPos.y = newPos.y + newSize.y
+    this.bl = new Quadtree(this.depth + 1, newPos, newSize)
+
+    newPos = this.rect.pos.copy()
+    newPos.x = newPos.x + newSize.x
+    newPos.y = newPos.y + newSize.y
+    this.br = new Quadtree(this.depth + 1, newPos, newSize)
+    this.divided = true
+  }
+
   update() {
-    for (let i = 0; i < this.children.length; i++) {
-      this.children[i].update()
+    this.draw()
+    if (this.divided) {
+      this.tl.update();
+      this.tr.update();
+      this.bl.update();
+      this.br.update();
+    } else {
+      for (let i = 0; i < this.nodes.length; i++) {
+        this.nodes[i].update()
+      }
     }
-    if (this.depth == maxDepth) {
-      this.draw()
-      if (this.children.length >= 2) {
-        for (let i = 0; i < this.children.length - 1; i++) {
-          for (let y = i + 1; y < this.children.length; y++) {
-            let sphere1 = this.children[i]
-            let sphere2 = this.children[y]
-            if (sphere1.pos.dist(sphere2.pos) < 50) {
-              line(sphere1.pos.x, sphere1.pos.y, sphere2.pos.x, sphere2.pos.y)
-            }
-            if (sphere1.pos.dist(sphere2.pos) < (sphere1.size / 2 + sphere2.size / 2)) {
-              fill(0, 100, 0)
-              ellipse(sphere1.pos.x, sphere1.pos.y, 20, 20)
-              collisions.push({ a: sphere1.id, b: sphere2.id })
-            }
+    this.draw()
+    if (this.nodes.length >= 2) {
+      for (let i = 0; i < this.nodes.length - 1; i++) {
+        for (let y = i + 1; y < this.nodes.length; y++) {
+          let sphere1 = this.nodes[i]
+          let sphere2 = this.nodes[y]
+          if (sphere1.pos.dist(sphere2.pos) < 50) {
+            line(sphere1.pos.x, sphere1.pos.y, sphere2.pos.x, sphere2.pos.y)
+          }
+          if (sphere1.pos.dist(sphere2.pos) < (sphere1.size / 2 + sphere2.size / 2)) {
+            fill(0, 100, 0)
+            ellipse(sphere1.pos.x, sphere1.pos.y, 20, 20)
+            collisions.push({ a: sphere1.id, b: sphere2.id })
           }
         }
       }
     }
+
   }
 
   contains(sphere) {
@@ -168,7 +195,7 @@ class Node {
   }
 
   draw() {
-    fill(0, 0, 80 * this.children.length, 50)
+    noFill()
     this.rect.draw()
   };
 }
@@ -199,7 +226,7 @@ class Sphere {
     this.bottom = () => this.pos.y + this.size.y
 
     this.vel = createVector(0, 0);
-    const speed = 0.5;
+    const speed = 1.5;
     this.acc = createVector(random(-speed, speed), random(-speed, speed));
   }
 
@@ -223,6 +250,7 @@ class Sphere {
   }
 
   draw() {
+    fill(0,154,255)
     ellipse(this.pos.x, this.pos.y, this.size)
   };
 }
