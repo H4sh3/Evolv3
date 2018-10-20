@@ -2,38 +2,96 @@ let cube;
 let portal;
 let gravity;
 let maxDepth;
-
+let maxSpeed;
 let rootNode;
+let reinsert;
+let spheres;
+let collisions;
+let graph;
+let tick;
 
 setup = () => {
   createCanvas(1300, 900).parent('jsCanvas');
   background(255, 112, 84);
-  cube = new Cube();
-  portal = new Portal();
-  gravity = createVector(0, 1);
-
-  maxDepth = 3
-  console.log(pow(4,maxDepth))
+  gravity = createVector(0, 0);
+  maxDepth = 4
   rootNode = new Node(0, createVector(0, 0), createVector(width, height))
+  spheres = new Map()
+  collisions = []
+  frameRate(50)
+  for (let i = 0; i < 1000; i++) {
+    let id = randomId()
+    spheres.set(id, new Sphere(id))
+  }
+  initTree()
+  graph = []
+  tick = 0;
+}
+
+randomId = () => {
+  return floor(random() * 101337733100)
+}
+
+initTree = () => {
+  rootNode = new Node(0, createVector(0, 0), createVector(width, height))
+  spheres.forEach(s => rootNode.insert(s))
 }
 
 draw = () => {
   background(255, 112, 84);
-  cube.update()
-  cube.draw()
+  document.querySelector('.frameRate').innerHTML = frameRate();
 
-  portal.draw()
-  portal.checkColl(cube)
+  initTree()
+  rootNode.update()
+  handleCollisions()
 
-  rootNode.draw()
+  spheres.forEach(c => c.update())
+  spheres.forEach(c => c.draw())
+
+  drawGraph()
+}
+
+drawGraph = () => {
+  tick += 0.5
+  graph.push({ x: tick, y: spheres.size })
+
+  for (let i = 1; i < graph.length - 1; i++) {
+    rect(graph[i].x, graph[i].y, 2, 2)
+    rect(graph[i + 1].x, graph[i + 1].y, 2, 2)
+    line(graph[i].x, graph[i].y, graph[i].x + 1, graph[i].y + 1)
+  }
+}
+
+handleCollisions = () => {
+  for (let i = 0; i < collisions.length; i++) {
+    let s1 = spheres.get(collisions[i].a)
+    let s2 = spheres.get(collisions[i].b)
+    if (s1 && s2) {
+      let r1 = s1.size / 2
+      let r2 = s2.size / 2
+      let area1 = pow(r1, 2) * PI
+      let area2 = pow(r2, 2) * PI
+      let sum = area1 + area2
+      let newRadius = sqrt(sum / PI)
+      let newSize = newRadius * 2
+      if (area1 > area2) {
+        s1.size = newSize
+        spheres.delete(s2.id)
+      } else {
+        s2.size = newSize
+        spheres.delete(s1.id)
+      }
+    }
+  }
+  collisions = []
 }
 
 class Node {
   constructor(depth, pos, size) {
     this.depth = depth
     this.children = [];
-    this.rect = new Rect(pos, size);
-    if (depth < maxDepth) {
+    this.rect = new Rectangle1(pos, size);
+    if (depth !== maxDepth) {
       for (let i = 0; i < 4; i++) {
         let newSize = this.rect.size.copy().div(2)
         let newPos = this.rect.pos.copy()
@@ -66,16 +124,54 @@ class Node {
     return this.children.length
   }
 
-  draw() {
-    fill(10 + 30 * this.depth, 0, 0)
-    this.rect.draw()
-    for (let i = 0; i < this.children.length; i++) {
-      this.children[i].draw()
+  insert(element) {
+    if (this.depth == maxDepth) {
+      this.children.push(element)
+    } else {
+      for (let i = 0; i < this.children.length; i++) {
+        if (this.children[i].contains(element)) {
+          this.children[i].insert(element)
+        }
+      }
     }
+  }
+
+  update() {
+    for (let i = 0; i < this.children.length; i++) {
+      this.children[i].update()
+    }
+    if (this.depth == maxDepth) {
+      this.draw()
+      if (this.children.length >= 2) {
+        for (let i = 0; i < this.children.length - 1; i++) {
+          for (let y = i + 1; y < this.children.length; y++) {
+            let sphere1 = this.children[i]
+            let sphere2 = this.children[y]
+            if (sphere1.pos.dist(sphere2.pos) < 50) {
+              line(sphere1.pos.x, sphere1.pos.y, sphere2.pos.x, sphere2.pos.y)
+            }
+            if (sphere1.pos.dist(sphere2.pos) < (sphere1.size / 2 + sphere2.size / 2)) {
+              fill(0, 100, 0)
+              ellipse(sphere1.pos.x, sphere1.pos.y, 20, 20)
+              collisions.push({ a: sphere1.id, b: sphere2.id })
+            }
+          }
+        }
+      }
+    }
+  }
+
+  contains(sphere) {
+    return sphereInRect(sphere, this.rect)
+  }
+
+  draw() {
+    fill(0, 0, 80 * this.children.length, 50)
+    this.rect.draw()
   };
 }
 
-class Rect {
+class Rectangle1 {
   constructor(pos, size) {
     this.pos = pos;
     this.size = size;
@@ -84,74 +180,56 @@ class Rect {
     this.top = () => this.pos.y
     this.bottom = () => this.pos.y + this.size.y
   }
+
   draw() {
     rect(this.pos.x, this.pos.y, this.size.x, this.size.y)
   }
 }
 
-class Cube {
-  constructor() {
-    this.rect = new Rect(createVector(320, 200), createVector(10, 10))
+class Sphere {
+  constructor(id) {
+    this.id = id
+    this.pos = createVector(random(width), random(height))
+    this.size = random(5, 10);
+    this.left = () => this.pos.x
+    this.right = () => this.pos.x + this.size.x
+    this.top = () => this.pos.y
+    this.bottom = () => this.pos.y + this.size.y
+
     this.vel = createVector(0, 0);
-    this.acc = createVector(0, 0);
+    const speed = 0.5;
+    this.acc = createVector(random(-speed, speed), random(-speed, speed));
   }
 
   update() {
     this.acc.add(gravity)
     this.vel.add(this.acc)
     this.acc = createVector(0, 0)
-    this.rect.pos.add(this.vel)
+    this.pos.add(this.vel)
+    if (this.pos.x > width) {
+      this.pos.x = 0;
+    }
+    if (this.pos.x < 0) {
+      this.pos.x = width;
+    }
+    if (this.pos.y > height) {
+      this.pos.y = 0;
+    }
+    if (this.pos.y < 0) {
+      this.pos.y = height;
+    }
   }
 
   draw() {
-    this.rect.draw()
+    ellipse(this.pos.x, this.pos.y, this.size)
   };
 }
 
-
-class Portal {
-  constructor() {
-    this.entrance1In = new Rect(createVector(300, 750), createVector(50, 50));
-    this.entrance1Out = new Rect(createVector(300, 700), createVector(50, 50));
-    this.entrance2In = new Rect(createVector(700, 750), createVector(50, 50));
-    this.entrance2Out = new Rect(createVector(700, 700), createVector(50, 50));
-  }
-
-  draw() {
-    fill(0, 150, 0)
-    this.entrance1In.draw();
-    this.entrance2In.draw();
-    fill(0, 0, 150)
-    this.entrance1Out.draw();
-    this.entrance2Out.draw();
-  };
-
-  checkColl(cube) {
-    if (intersectRect(this.entrance1In, cube.rect)) {
-      cube.rect.pos.x = this.entrance2Out.pos.x + this.entrance2Out.size.x / 2;
-      cube.rect.pos.y = this.entrance2Out.pos.y;
-
-      let dif = this.entrance2Out.pos.copy().sub(this.entrance2In.pos).normalize()
-      cube.vel.y = cube.vel.y * dif.y
-    }
-    if (intersectRect(this.entrance2In, cube.rect)) {
-      cube.rect.pos.x = this.entrance1Out.pos.x + this.entrance2Out.size.x / 2;
-      cube.rect.pos.y = this.entrance1Out.pos.y;
-
-      let dif = this.entrance1Out.pos.copy().sub(this.entrance1In.pos).normalize()
-      cube.vel.y = cube.vel.y * dif.y
-    }
-  }
+function sphereInRect(sphere, rect) {
+  return !(sphere.pos.x > rect.right() ||
+    sphere.pos.x < rect.left() ||
+    sphere.pos.y > rect.bottom() ||
+    sphere.pos.y < rect.top());
 }
-
-function intersectRect(r1, r2) {
-  return !(r2.left() > r1.right() ||
-    r2.right() < r1.left() ||
-    r2.top() > r1.bottom() ||
-    r2.bottom() < r1.top());
-}
-
-
-
 
 
