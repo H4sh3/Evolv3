@@ -19,7 +19,7 @@ setup = () => {
   spheres = new Map()
   collisions = []
   frameRate(50)
-  for (let i = 0; i < 1000; i++) {
+  for (let i = 0; i < 1500; i++) {
     let id = randomId()
     spheres.set(id, new Sphere(id))
   }
@@ -52,14 +52,14 @@ draw = () => {
 }
 
 drawGraph = () => {
-  tick += 0.5
+/*   tick += 0.5
   graph.push({ x: tick, y: spheres.size })
 
   for (let i = 1; i < graph.length - 1; i++) {
     rect(graph[i].x, graph[i].y, 2, 2)
     rect(graph[i + 1].x, graph[i + 1].y, 2, 2)
     line(graph[i].x, graph[i].y, graph[i].x + 1, graph[i].y + 1)
-  }
+  } */
 }
 
 handleCollisions = () => {
@@ -67,13 +67,9 @@ handleCollisions = () => {
     let s1 = spheres.get(collisions[i].a)
     let s2 = spheres.get(collisions[i].b)
     if (s1 && s2) {
-      let r1 = s1.size / 2
-      let r2 = s2.size / 2
-      let area1 = pow(r1, 2) * PI
-      let area2 = pow(r2, 2) * PI
-      let sum = area1 + area2
-      let newRadius = sqrt(sum / PI)
-      let newSize = newRadius * 2
+      let area1 = pow((s1.size / 2), 2) * PI
+      let area2 = pow((s2.size / 2), 2) * PI
+      let newSize = getNewSize(area1,area2)
       if (area1 > area2) {
         s1.size = newSize
         spheres.delete(s2.id)
@@ -84,6 +80,12 @@ handleCollisions = () => {
     }
   }
   collisions = []
+}
+
+getNewSize = (area1,area2) => {
+  let sum = area1 + area2
+  let newRadius = sqrt(sum / PI)
+  return newRadius * 2
 }
 
 class Node {
