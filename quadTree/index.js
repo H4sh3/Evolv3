@@ -1,10 +1,5 @@
 let cube;
-let portal;
-let gravity;
-let maxDepth;
-let maxSpeed;
 let rootNode;
-let reinsert;
 let spheres;
 let collisions;
 let graph;
@@ -13,7 +8,6 @@ let tick;
 setup = () => {
   createCanvas(1300, 900).parent('jsCanvas');
   background(255, 112, 84);
-  gravity = createVector(0, 0);
   rootNode = new Quadtree(0, createVector(0, 0), createVector(width, height))
   spheres = new Map()
   collisions = []
@@ -48,6 +42,10 @@ draw = () => {
   spheres.forEach(c => c.draw())
 
   drawGraph()
+  if(tick%10===0){
+    let id = randomId()
+    spheres.set(id, new Sphere(id))
+  }
 }
 
 drawGraph = () => {
@@ -231,7 +229,6 @@ class Sphere {
   }
 
   update() {
-    this.acc.add(gravity)
     this.vel.add(this.acc)
     this.acc = createVector(0, 0)
     this.pos.add(this.vel)
@@ -252,6 +249,8 @@ class Sphere {
   draw() {
     fill(0,154,255)
     ellipse(this.pos.x, this.pos.y, this.size)
+    fill(0)
+    text(floor(this.size),this.pos.x, this.pos.y)
   };
 }
 
